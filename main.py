@@ -7,7 +7,7 @@ from astrbot.api.event import filter
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
 from astrbot import logger
 
-@register("astrbot_plugin_preset_hub", "Antigravity", "全局预设中心", "1.1.0")
+@register("astrbot_plugin_preset_hub", "Antigravity", "全局预设中心", "1.1.1")
 class PresetHub(Star):
     def __init__(self, context: Context, config: dict):
         super().__init__(context)
@@ -16,7 +16,7 @@ class PresetHub(Star):
         self.preset_file = os.path.join(str(self.data_dir), "global_presets.json")
         self.backup_file = os.path.join(str(self.data_dir), "global_presets.json.bak")
         
-        # 数据结构回归简单: { "key": "prompt_content" }
+        # 数据结构: { "key": "prompt_content" }
         self.presets: Dict[str, str] = {}
         
         # 初始化加载
@@ -35,8 +35,7 @@ class PresetHub(Star):
             with open(self.preset_file, 'r', encoding='utf-8') as f:
                 raw_data = json.load(f)
             
-            # 兼容性处理：如果之前的版本保存了 {"prompt": "...", "negative": "..."} 结构
-            # 这里会自动将其“拍扁”回纯字符串，只保留 prompt 字段
+            # 兼容性处理
             is_migrated = False
             for k, v in raw_data.items():
                 if isinstance(v, dict) and "prompt" in v:
@@ -45,7 +44,6 @@ class PresetHub(Star):
                 elif isinstance(v, str):
                     self.presets[k] = v
                 else:
-                    # 未知格式，强转字符串防报错
                     self.presets[k] = str(v)
             
             if is_migrated:
@@ -61,9 +59,7 @@ class PresetHub(Star):
         default_data = {
             "手办": "Transform this image into a high-quality figurine style, plastic texture, studio lighting",
             "二次元": "anime style, flat color, cel shading, high quality",
-            "赛博朋克": "cyberpunk style, neon lights, high tech, futuristic city",
-            "素描": "sketch style, pencil drawing, monochrome, high contrast",
-            "油画": "oil painting style, thick brushstrokes, artistic, texture"
+            "赛博朋克": "cyberpunk style, neon lights, high tech, futuristic city"
         }
         self.presets = default_data
         self._save_safe(default_data)
@@ -84,7 +80,6 @@ class PresetHub(Star):
             return True
         except Exception as e:
             logger.error(f"[PresetHub] 保存预设失败: {e}")
-            # 尝试恢复
             if os.path.exists(self.backup_file):
                 shutil.copy(self.backup_file, self.preset_file)
             return False
@@ -103,19 +98,36 @@ class PresetHub(Star):
 
     @filter.command("添加预设")
     @filter.permission_type(filter.PermissionType.ADMIN) # 仅管理员可用
-    async def add_preset(self, event: AstrMessageEvent, key: str, value: str):
+    async def add_preset(self, event: AstrMessageEvent, key: str = None, *, value: str = None):
         """
-        添加或更新全局预设
+        添加或更新全局预设 (支持包含空格的长文本)
         用法: /添加预设 关键词 提示词内容
         """
-        if not key or not value:
-            yield event.plain_result("❌ 格式错误。用法: /添加预设 关键词 提示词内容")
-            return
+        # 1. 尝试直接从指令解析获取 (key 和 value)
+        # 如果 parser 成功解析了 value (即便可能有截断)，我们先拿到 key
+        
+        # 2. 手动解析 Raw Message 以完美处理空格
+        # 获取原始文本，例如 "/添加预设 奥义图  图片比例4:3 奥义图分镜..."
+        raw_msg = event.message_str.strip()
+        
+        # 去除指令本身 "/添加预设" (兼容不同前缀)
+        # 这里简单切分: split(maxsplit=2)
+        # parts[0] 是指令, parts[1] 是 key, parts[2] 是剩下的所有内容
+        parts = raw_msg.split(maxsplit=2)
 
-        self.presets[key] = value.strip()
+        if len(parts) < 3:
+             yield event.plain_result("❌ 格式错误。用法: /添加预设 关键词 提示词内容")
+             return
+
+        real_key = parts[1]
+        real_value = parts[2]
+
+        self.presets[real_key] = real_value.strip()
         
         if self._save_safe(self.presets):
-            yield event.plain_result(f"✅ 全局预设已保存: [{key}]\n内容: {value[:50]}{'...' if len(value)>50 else ''}")
+            # 截取预览
+            preview = real_value[:30] + "..." if len(real_value) > 30 else real_value
+            yield event.plain_result(f"✅ 全局预设已保存\n🔑 关键词: [{real_key}]\n📝 内容: {preview}")
         else:
             yield event.plain_result(f"❌ 保存失败，请查看后台日志")
 
@@ -142,9 +154,9 @@ class PresetHub(Star):
 
         keys = list(self.presets.keys())
         msg = f"🌏 全局预设列表 (共 {len(keys)} 个):\n" + "━" * 20 + "\n"
-        # 简单排版：每行显示一个
         for k in keys:
-            preview = self.presets[k][:20] + "..." if len(self.presets[k]) > 20 else self.presets[k]
+            # 只显示前15个字预览
+            preview = self.presets[k][:15].replace("\n", " ") + "..."
             msg += f"🔹 {k}: {preview}\n"
         msg += "━" * 20 + "\n💡 使用 /查询预设 [关键词] 查看完整内容"
         yield event.plain_result(msg)
@@ -170,7 +182,6 @@ class PresetHub(Star):
 
         results = []
         for k, v in self.presets.items():
-            # 搜索 Key 或者 Prompt 内容
             if keyword.lower() in k.lower() or keyword.lower() in v.lower():
                 results.append(k)
         
