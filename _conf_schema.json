@@ -1,0 +1,16 @@
+{
+    "usage_tip": {
+        "description": "使用说明",
+        "type": "string",
+        "default": "这是一个纯数据插件，无需配置。",
+        "hint": "请直接在聊天窗口使用指令管理预设：\n1. /添加预设 关键词 提示词\n2. /删除预设 关键词\n3. /全局预设列表",
+        "obvious_hint": true
+    },
+    "default_presets_loaded": {
+        "description": "状态",
+        "type": "string",
+        "default": "正常运行中",
+        "hint": "该插件为 RongheDraw 和 Zimg 提供统一的预设数据源。",
+        "obvious_hint": true
+    }
+}
