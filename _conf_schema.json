@@ -1,16 +1,22 @@
 {
+    "prompt_list": {
+        "description": "预设提示词列表 (Web配置端)",
+        "hint": "格式: 触发词:提示词。例如：二次元:anime style, high quality。修改此处重启插件后会自动导入到数据库。",
+        "type": "list",
+        "default": []
+    },
     "usage_tip": {
         "description": "使用说明",
         "type": "string",
-        "default": "这是一个纯数据插件，无需配置。",
-        "hint": "请直接在聊天窗口使用指令管理预设：\n1. /添加预设 关键词 提示词\n2. /删除预设 关键词\n3. /全局预设列表",
+        "default": "纯数据插件",
+        "hint": "你也可以在聊天窗口使用指令：\n1. /添加预设 关键词 提示词\n2. /删除预设 关键词\n3. /全局预设列表",
         "obvious_hint": true
     },
     "default_presets_loaded": {
         "description": "状态",
         "type": "string",
-        "default": "正常运行中",
-        "hint": "该插件为 RongheDraw 和 Zimg 提供统一的预设数据源。",
+        "default": "运行中",
+        "hint": "预设库已连接。",
         "obvious_hint": true
     }
 }
